@@ -1,0 +1,123 @@
+#include <iostream>
+#include <functional>
+
+using namespace std;
+
+int tableSize = 11;
+
+// Hash functions
+int hashFunction1(const string& key) {
+    hash<string> hasher;
+    return hasher(key) % tableSize;
+}
+
+int hashFunction2(const string& key) {
+    hash<string> hasher;
+    return (hasher(key) / 2) % tableSize; // Using a different hash function for the second table
+}
+
+// Insert a key into the hash tables (Cuckoo Hashing)
+void insertKey(string key, string* table1, string* table2, int& currentSize);
+
+// Rehash the tables
+void rehash(string*& table1, string*& table2, int& currentSize);
+
+// Print the hash tables
+void printTables(const string* table1, const string* table2, int tableSize);
+
+int main() {
+    // Create hash tables
+    string* table1 = new string[tableSize];
+    string* table2 = new string[tableSize];
+
+    // Insert some keys
+    int currentSize = tableSize;
+    insertKey("apple", table1, table2, currentSize);
+    insertKey("banana", table1, table2, currentSize);
+    insertKey("orange", table1, table2, currentSize);
+    insertKey("grape", table1, table2, currentSize);
+    insertKey("melon", table1, table2, currentSize);
+
+    // Print the hash tables
+    printTables(table1, table2, currentSize);
+
+    // Clean up
+    delete[] table1;
+    delete[] table2;
+
+    return 0;
+}
+
+void insertKey(string key, string* table1, string* table2, int& currentSize) {
+    int hash1 = hashFunction1(key);
+    int hash2 = hashFunction2(key);
+
+    for (int i = 0; i < currentSize; ++i) {
+        // Attempt to insert into table 1
+        if (table1[hash1].empty()) {
+            table1[hash1] = key;
+            return;
+        }
+
+        // If table 1 is occupied, move the existing key to table 2
+        swap(key, table1[hash1]);
+
+        // Recalculate hash using the second hash function
+        hash2 = hashFunction2(key);
+
+        // Attempt to insert into table 2
+        if (table2[hash2].empty()) {
+            table2[hash2] = key;
+            return;
+        }
+
+        // If table 2 is occupied, move the existing key to table 1
+        swap(key, table2[hash2]);
+
+        // Recalculate hash using the first hash function
+        hash1 = hashFunction1(key);
+    }
+
+    // If we reach this point, rehash is needed
+    rehash(table1, table2, currentSize);
+    insertKey(key, table1, table2, currentSize);
+}
+
+void rehash(string*& table1, string*& table2, int& currentSize) {
+    // Double the size of the tables
+    int newSize = currentSize * 2;
+
+    // Create new tables
+    string* newTable1 = new string[newSize];
+    string* newTable2 = new string[newSize];
+
+    // Reinsert all elements
+    for (int i = 0; i < currentSize; ++i) {
+        if (!table1[i].empty()) {
+            insertKey(table1[i], newTable1, newTable2, newSize);
+        }
+
+        if (!table2[i].empty()) {
+            insertKey(table2[i], newTable1, newTable2, newSize);
+        }
+    }
+
+    // Update currentSize and replace old tables with new tables
+    currentSize = newSize;
+    delete[] table1;
+    delete[] table2;
+    table1 = newTable1;
+    table2 = newTable2;
+}
+
+void printTables(const string* table1, const string* table2, int tableSize) {
+    cout << "Table 1: ";
+    for (int i = 0; i < tableSize; ++i) {
+        cout << table1[i] << " ";
+    }
+    cout << "\nTable 2: ";
+    for (int i = 0; i < tableSize; ++i) {
+        cout << table2[i] << " ";
+    }
+    cout << "\n";
+}
